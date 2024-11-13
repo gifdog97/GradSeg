@@ -130,3 +130,6 @@ dmypy.json
 
 # typings
 typings/
+
+# script for experiment
+run.sh

@@ -100,7 +100,9 @@ model = model.cuda()
 train_wavs, train_bounds = data_loader.get_data_buckeye(args.train_path, args.train_n)
 val_wavs, val_bounds = data_loader.get_data_buckeye(args.val_path, args.eval_n)
 
+print("train data loading...")
 train_e = data_loader.get_emb(train_wavs, model, args.layer)
+print("validation data loading...")
 val_e = data_loader.get_emb(val_wavs, model, args.layer)
 
 print("frame duration (s): %f" % (frames_per_embedding / 16000))

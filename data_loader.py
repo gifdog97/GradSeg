@@ -6,6 +6,7 @@ import torch
 import torchaudio
 from boltons import fileutils
 from torchaudio.models import Wav2Vec2Model
+from tqdm import tqdm
 
 
 def get_data_buckeye(
@@ -17,7 +18,7 @@ def get_data_buckeye(
     rp = np.random.permutation(len(wavs))
     wavs: List[Any] = [wavs[i] for i in rp]
     for wav in wavs[:max_files]:
-        word_fn = wav.replace("wav", "word")
+        word_fn = wav.replace("wav", "wrd")
         words = open(word_fn, "r").readlines()
         words = [w.strip().split() for w in words]
         bounds = [(int(w[0]), int(w[1])) for w in words]
@@ -34,7 +35,7 @@ def get_emb(
     wavs: List[torch.Tensor], model: Wav2Vec2Model, layer: int = -1, feat_idx: int = -1
 ):
     es: List[npt.NDArray[Any]] = []
-    for waveform in wavs:
+    for waveform in tqdm(wavs):
         e = embed(waveform, model, layer, feat_idx)
         es.append(e)
     return es
