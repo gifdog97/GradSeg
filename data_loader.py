@@ -18,7 +18,7 @@ def get_data_buckeye(
     rp = np.random.permutation(len(wavs))
     wavs: List[Any] = [wavs[i] for i in rp]
     for wav in wavs[:max_files]:
-        word_fn = wav.replace("wav", "wrd")
+        word_fn = wav.replace("wav", "word")
         words = open(word_fn, "r").readlines()
         words = [w.strip().split() for w in words]
         bounds = [(int(w[0]), int(w[1])) for w in words]
