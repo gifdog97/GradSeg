@@ -175,7 +175,7 @@ for val_audio_path, seg_bound in zip(val_audio_paths, seg_bounds):
     boundary_path = data_loader.generate_aligned_path(
         args.boundary_root_path, args.val_path, val_audio_path
     )
-    with open(boundary_path, "w") as f:
+    with open(boundary_path.with_suffix(".txt"), "w") as f:
         for idx, b in enumerate(seg_bound):
             # idx * 10 gives millisecond time
             if b == 1:
