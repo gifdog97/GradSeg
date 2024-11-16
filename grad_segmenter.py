@@ -1,4 +1,5 @@
 import argparse
+import os
 from typing import Any, List
 
 import numpy as np
@@ -23,8 +24,20 @@ parser.add_argument(
     default="/cs/labs/yedid/yedid/wordcluster/buckeye_processed/val",
     help="dir of .wav, .wrd files for val data",
 )
+parser.add_argument(
+    "--boundary_root_path",
+    type=str,
+    default="/data/skando/speechLM/experiment/boundaries/librispeech/train-clean-100/word",
+    help="path to output word boundary",
+)
 
 
+parser.add_argument(
+    "--extension",
+    type=str,
+    default="wav",
+    help="extension of audio file",
+)
 parser.add_argument(
     "--train_n", type=int, default=200, help="number of files from training data to use"
 )
@@ -97,8 +110,12 @@ model, dim = data_loader.get_model(args.arc)
 model = model.cuda()
 
 
-train_wavs, train_bounds = data_loader.get_data_buckeye(args.train_path, args.train_n)
-val_wavs, val_bounds = data_loader.get_data_buckeye(args.val_path, args.eval_n)
+train_paths, train_wavs, train_bounds = data_loader.get_data_buckeye(
+    args.train_path, args.train_n, args.extension
+)
+val_audio_paths, val_wavs, val_bounds = data_loader.get_data_buckeye(
+    args.val_path, args.eval_n, args.extension
+)
 
 print("train data loading...")
 train_e = data_loader.get_emb(train_wavs, model, args.layer)
@@ -153,6 +170,17 @@ for idx in range(len(val_e)):
     ref_bounds.append(ref_bound)
     seg_bounds.append(seg_bound)
 
+os.makedirs(args.boundary_root_path, exist_ok=True)
+for val_audio_path, seg_bound in zip(val_audio_paths, seg_bounds):
+    boundary_path = data_loader.generate_aligned_path(
+        args.boundary_root_path, args.val_path, val_audio_path
+    )
+    with open(boundary_path, "w") as f:
+        for idx, b in enumerate(seg_bound):
+            # idx * 10 gives millisecond time
+            if b == 1:
+                ms = idx * 10
+                f.write(str(ms) + "\n")
 
 precision, recall, f = eval_segmentation.score_boundaries(ref_bounds, seg_bounds, 2)
 os = eval_segmentation.get_os(precision, recall) * 100
