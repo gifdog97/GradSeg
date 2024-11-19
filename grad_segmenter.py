@@ -8,7 +8,6 @@ import torch
 from sklearn.linear_model import LogisticRegression, Ridge
 
 import data_loader
-import eval_segmentation
 
 parser = argparse.ArgumentParser(description="GradSeg word segmentation")
 
@@ -110,10 +109,10 @@ model, dim = data_loader.get_model(args.arc)
 model = model.cuda()
 
 
-train_paths, train_wavs, train_bounds = data_loader.get_data_buckeye(
+train_paths, train_wavs = data_loader.get_data(
     args.train_path, args.train_n, args.extension
 )
-val_audio_paths, val_wavs, val_bounds = data_loader.get_data_buckeye(
+val_audio_paths, val_wavs = data_loader.get_data(
     args.val_path, args.eval_n, args.extension
 )
 
@@ -142,8 +141,7 @@ mu = train_e_np.mean(0)[None, :]
 std = train_e_np.std(0)[None, :]
 clf.fit((train_e_np - mu) / std, targets)
 
-ref_bounds = []
-seg_bounds = []
+seg_bounds: List[npt.NDArray[Any]] = []
 for idx in range(len(val_e)):
     if args.loss == "logres":
         d = clf.predict_proba((val_e[idx] - mu) / std)[:, 1]
@@ -156,25 +154,17 @@ for idx in range(len(val_e)):
     p = np.minimum(p, 2 * (len(d) - 1))
     p = p.astype("int")
 
-    boundaries = (
-        np.array(data_loader.get_bounds(val_bounds[idx])) // frames_per_embedding
-    )
-    boundaries = np.minimum(boundaries[1:-1], (len(d) - 1) * 2)
-
-    ref_bound = np.zeros(len(d) * 2)
     seg_bound = np.zeros(len(d) * 2)
-    ref_bound[boundaries] = 1
     seg_bound[p] = 1
-    ref_bound[-1] = 1
     seg_bound[-1] = 1
-    ref_bounds.append(ref_bound)
     seg_bounds.append(seg_bound)
 
-os.makedirs(args.boundary_root_path, exist_ok=True)
+# Write to boundary file
 for val_audio_path, seg_bound in zip(val_audio_paths, seg_bounds):
     boundary_path = data_loader.generate_aligned_path(
         args.boundary_root_path, args.val_path, val_audio_path
     )
+    os.makedirs(boundary_path, exist_ok=True)
     with open(boundary_path.with_suffix(".txt"), "w") as f:
         for idx, b in enumerate(seg_bound):
             # idx * 10 gives millisecond time
@@ -182,7 +172,8 @@ for val_audio_path, seg_bound in zip(val_audio_paths, seg_bounds):
                 ms = idx * 10
                 f.write(str(ms) + "\n")
 
-precision, recall, f = eval_segmentation.score_boundaries(ref_bounds, seg_bounds, 2)
-os = eval_segmentation.get_os(precision, recall) * 100
-r_val = eval_segmentation.get_rvalue(precision, recall) * 100
-print("Final result:", precision * 100, recall * 100, f * 100, os, r_val)
+# TODO: rewrite evaluation code
+# precision, recall, f = eval_segmentation.score_boundaries(ref_bounds, seg_bounds, 2)
+# os = eval_segmentation.get_os(precision, recall) * 100
+# r_val = eval_segmentation.get_rvalue(precision, recall) * 100
+# print("Final result:", precision * 100, recall * 100, f * 100, os, r_val)

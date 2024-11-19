@@ -14,28 +14,28 @@ def generate_aligned_path(root_path: str, audio_root_path: str, audio_path: Path
     return Path(root_path) / audio_path.relative_to(audio_root_path)
 
 
-def get_data_buckeye(
+def get_data(
     path: str, max_files: int, extension: str
-) -> Tuple[List[Path], List[torch.Tensor], List[List[Tuple[int, int]]]]:
+) -> Tuple[List[Path], List[torch.Tensor]]:
     wavs = list(fileutils.iter_find_files(path, f"*.{extension}"))
     all_paths: List[Path] = []
     all_wavs: List[torch.Tensor] = []
-    all_bounds: List[List[Tuple[int, int]]] = []
     rp = np.random.permutation(len(wavs))
     wavs: List[Any] = [wavs[i] for i in rp]
-    for wav in wavs[:max_files]:
+    for wav in tqdm(wavs[:max_files]):
         all_paths.append(Path(wav))
-        word_fn = wav.replace("wav", "word")
-        words = open(word_fn, "r").readlines()
-        words = [w.strip().split() for w in words]
-        bounds = [(int(w[0]), int(w[1])) for w in words]
+        # TODO: maybe commented lines are not necessary any more??
+        # word_fn = wav.replace("wav", "word")
+        # words = open(word_fn, "r").readlines()
+        # words = [w.strip().split() for w in words]
+        # bounds = [(int(w[0]), int(w[1])) for w in words]
 
         waveform, sr = torchaudio.load(wav)
         assert isinstance(waveform, torch.Tensor)
-        if len(bounds) > 0:
-            all_wavs.append(waveform)
-            all_bounds.append(bounds)
-    return all_paths, all_wavs, all_bounds
+        # if len(bounds) > 0:
+        #     all_wavs.append(waveform)
+        all_wavs.append(waveform)
+    return all_paths, all_wavs
 
 
 def get_emb(
