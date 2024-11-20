@@ -171,9 +171,3 @@ for val_audio_path, seg_bound in zip(val_audio_paths, seg_bounds):
             if b == 1:
                 ms = idx * 10
                 f.write(str(ms) + "\n")
-
-# TODO: rewrite evaluation code
-# precision, recall, f = eval_segmentation.score_boundaries(ref_bounds, seg_bounds, 2)
-# os = eval_segmentation.get_os(precision, recall) * 100
-# r_val = eval_segmentation.get_rvalue(precision, recall) * 100
-# print("Final result:", precision * 100, recall * 100, f * 100, os, r_val)
