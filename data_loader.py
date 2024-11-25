@@ -9,6 +9,8 @@ from boltons import fileutils
 from torchaudio.models import Wav2Vec2Model
 from tqdm import tqdm
 
+SECOND_THRESHOLD = 300
+
 
 def generate_aligned_path(root_path: str, audio_root_path: str, audio_path: Path):
     return Path(root_path) / audio_path.relative_to(audio_root_path)
@@ -23,7 +25,6 @@ def get_data(
     rp = np.random.permutation(len(wavs))
     wavs: List[Any] = [wavs[i] for i in rp]
     for wav in tqdm(wavs[:max_files]):
-        all_paths.append(Path(wav))
         # TODO: maybe commented lines are not necessary any more??
         # word_fn = wav.replace("wav", "word")
         # words = open(word_fn, "r").readlines()
@@ -32,8 +33,12 @@ def get_data(
 
         waveform, sr = torchaudio.load(wav)
         assert isinstance(waveform, torch.Tensor)
+        if len(waveform) > sr * SECOND_THRESHOLD:
+            continue
+
         # if len(bounds) > 0:
         #     all_wavs.append(waveform)
+        all_paths.append(Path(wav))
         all_wavs.append(waveform)
     return all_paths, all_wavs
 
