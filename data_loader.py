@@ -33,7 +33,7 @@ def get_data(
 
         waveform, sr = torchaudio.load(wav)
         assert isinstance(waveform, torch.Tensor)
-        if len(waveform) > sr * SECOND_THRESHOLD:
+        if len(waveform[0]) > sr * SECOND_THRESHOLD:
             continue
 
         # if len(bounds) > 0:
