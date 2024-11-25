@@ -25,19 +25,11 @@ def get_data(
     rp = np.random.permutation(len(wavs))
     wavs: List[Any] = [wavs[i] for i in rp]
     for wav in tqdm(wavs[:max_files]):
-        # TODO: maybe commented lines are not necessary any more??
-        # word_fn = wav.replace("wav", "word")
-        # words = open(word_fn, "r").readlines()
-        # words = [w.strip().split() for w in words]
-        # bounds = [(int(w[0]), int(w[1])) for w in words]
-
         waveform, sr = torchaudio.load(wav)
         assert isinstance(waveform, torch.Tensor)
         if len(waveform[0]) > sr * SECOND_THRESHOLD:
             continue
 
-        # if len(bounds) > 0:
-        #     all_wavs.append(waveform)
         all_paths.append(Path(wav))
         all_wavs.append(waveform)
     return all_paths, all_wavs

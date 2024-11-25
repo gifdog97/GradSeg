@@ -1,13 +1,19 @@
 import argparse
 import os
+from pathlib import Path
 from typing import Any, List
 
 import numpy as np
 import numpy.typing as npt
 import torch
+import torchaudio
+from boltons import fileutils
 from sklearn.linear_model import LogisticRegression, Ridge
+from tqdm import tqdm
 
 import data_loader
+
+SECOND_THRESHOLD = 300
 
 parser = argparse.ArgumentParser(description="GradSeg word segmentation")
 
@@ -112,17 +118,11 @@ model = model.cuda()
 train_paths, train_wavs = data_loader.get_data(
     args.train_path, args.train_n, args.extension
 )
-val_audio_paths, val_wavs = data_loader.get_data(
-    args.val_path, args.eval_n, args.extension
-)
 
 print("train data loading...")
 train_e = data_loader.get_emb(train_wavs, model, args.layer)
-print("validation data loading...")
-val_e = data_loader.get_emb(val_wavs, model, args.layer)
 
 print("frame duration (s): %f" % (frames_per_embedding / 16000))
-
 
 ds: List[npt.NDArray[Any]] = []
 for idx in range(len(train_e)):
@@ -141,13 +141,19 @@ mu = train_e_np.mean(0)[None, :]
 std = train_e_np.std(0)[None, :]
 clf.fit((train_e_np - mu) / std, targets)
 
-seg_bounds: List[npt.NDArray[Any]] = []
-for idx in range(len(val_e)):
+val_audio_paths = list(fileutils.iter_find_files(args.val_path, f"*.{args.extension}"))
+for val_audio_path in tqdm(val_audio_paths[: args.eval_n]):
+    val_wav, sr = torchaudio.load(val_audio_path)
+    assert isinstance(val_wav, torch.Tensor)
+    if len(val_wav[0]) > sr * SECOND_THRESHOLD:
+        continue
+    emb = data_loader.embed(val_wav, model, args.layer)
+
     if args.loss == "logres":
-        d = clf.predict_proba((val_e[idx] - mu) / std)[:, 1]
+        d = clf.predict_proba((emb - mu) / std)[:, 1]
     else:
-        d = clf.predict((val_e[idx] - mu) / std)
-    num_words = int(len(val_e[idx]) / args.frames_per_word)
+        d = clf.predict((emb - mu) / std)
+    num_words = int(len(emb) / args.frames_per_word)
     p = get_seg(d, num_words, args.min_separation)
 
     p = p * 2 + args.offset
@@ -157,12 +163,9 @@ for idx in range(len(val_e)):
     seg_bound = np.zeros(len(d) * 2)
     seg_bound[p] = 1
     seg_bound[-1] = 1
-    seg_bounds.append(seg_bound)
 
-# Write to boundary file
-for val_audio_path, seg_bound in zip(val_audio_paths, seg_bounds):
     boundary_path = data_loader.generate_aligned_path(
-        args.boundary_root_path, args.val_path, val_audio_path
+        args.boundary_root_path, args.val_path, Path(val_audio_path)
     )
     os.makedirs(boundary_path, exist_ok=True)
     with open(boundary_path.with_suffix(".txt"), "w") as f:
