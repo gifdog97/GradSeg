@@ -32,7 +32,7 @@ parser.add_argument(
 parser.add_argument(
     "--boundary_root_path",
     type=str,
-    default="/data/skando/speechLM/experiment/boundaries/librispeech/train-clean-100/word",
+    default="/data/skando/speechLM/experiment/boundaries/LibriSpeech/train-clean-100",
     help="path to output word boundary",
 )
 
@@ -165,9 +165,9 @@ for val_audio_path in tqdm(val_audio_paths[: args.eval_n]):
     seg_bound[-1] = 1
 
     boundary_path = data_loader.generate_aligned_path(
-        args.boundary_root_path, args.val_path, Path(val_audio_path)
+        f"{args.boundary_root_path}/word", args.val_path, Path(val_audio_path)
     )
-    os.makedirs(boundary_path, exist_ok=True)
+    os.makedirs(boundary_path.parent, exist_ok=True)
     with open(boundary_path.with_suffix(".txt"), "w") as f:
         for idx, b in enumerate(seg_bound):
             # idx * 10 gives millisecond time
