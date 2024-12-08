@@ -132,4 +132,5 @@ dmypy.json
 typings/
 
 # script for experiment
+nohup/
 run.sh
