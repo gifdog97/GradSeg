@@ -124,11 +124,13 @@ train_e = data_loader.get_emb(train_wavs, model, args.layer)
 
 print("frame duration (s): %f" % (frames_per_embedding / 16000))
 
+print("getting grad magnitude...")
 ds: List[npt.NDArray[Any]] = []
 for idx in range(len(train_e)):
     d = get_grad_mag(train_e[idx])
     ds.append(d)
 
+print("training classifier...")
 ds = np.concatenate(ds)
 th = np.percentile(ds, args.target_perc)
 targets = ds > th
@@ -141,14 +143,25 @@ mu = train_e_np.mean(0)[None, :]
 std = train_e_np.std(0)[None, :]
 clf.fit((train_e_np - mu) / std, targets)
 
+print("segmenting validation data...")
 val_audio_paths = list(fileutils.iter_find_files(args.val_path, f"*.{args.extension}"))
 for val_audio_path in tqdm(val_audio_paths[: args.eval_n]):
+    boundary_path = data_loader.generate_aligned_path(
+        f"{args.boundary_root_path}/word", args.val_path, Path(val_audio_path)
+    ).with_suffix(".txt")
+    # skip if boundary file already exists
+    if boundary_path.exists():
+        continue
+    os.makedirs(boundary_path.parent, exist_ok=True)
+
+    # laod audio and get embedding
     val_wav, sr = torchaudio.load(val_audio_path)
     assert isinstance(val_wav, torch.Tensor)
     if len(val_wav[0]) > sr * SECOND_THRESHOLD:
         continue
     emb = data_loader.embed(val_wav, model, args.layer)
 
+    # predict grad magnitude and perform segmentation
     if args.loss == "logres":
         d = clf.predict_proba((emb - mu) / std)[:, 1]
     else:
@@ -156,6 +169,7 @@ for val_audio_path in tqdm(val_audio_paths[: args.eval_n]):
     num_words = int(len(emb) / args.frames_per_word)
     p = get_seg(d, num_words, args.min_separation)
 
+    # post-process segments
     p = p * 2 + args.offset
     p = np.minimum(p, 2 * (len(d) - 1))
     p = p.astype("int")
@@ -164,11 +178,8 @@ for val_audio_path in tqdm(val_audio_paths[: args.eval_n]):
     seg_bound[p] = 1
     seg_bound[-1] = 1
 
-    boundary_path = data_loader.generate_aligned_path(
-        f"{args.boundary_root_path}/word", args.val_path, Path(val_audio_path)
-    )
-    os.makedirs(boundary_path.parent, exist_ok=True)
-    with open(boundary_path.with_suffix(".txt"), "w") as f:
+    # write boundary file
+    with open(boundary_path, "w") as f:
         for idx, b in enumerate(seg_bound):
             # idx * 10 gives millisecond time
             if b == 1:
