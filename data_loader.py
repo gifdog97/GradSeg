@@ -12,10 +12,6 @@ from tqdm import tqdm
 SECOND_THRESHOLD = 300
 
 
-def generate_aligned_path(root_path: str, audio_root_path: str, audio_path: Path):
-    return Path(root_path) / audio_path.relative_to(audio_root_path)
-
-
 def get_data(
     path: str, max_files: int, extension: str
 ) -> Tuple[List[Path], List[torch.Tensor]]:

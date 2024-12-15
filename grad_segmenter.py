@@ -1,6 +1,5 @@
 import argparse
 import os
-from pathlib import Path
 from typing import Any, List
 
 import numpy as np
@@ -35,13 +34,17 @@ parser.add_argument(
     default="/data/skando/speechLM/experiment/boundaries/LibriSpeech/train-clean-100",
     help="path to output word boundary",
 )
-
-
 parser.add_argument(
-    "--extension",
+    "--train_extension",
     type=str,
     default="wav",
-    help="extension of audio file",
+    help="extension of audio file (train)",
+)
+parser.add_argument(
+    "--val_extension",
+    type=str,
+    default="wav",
+    help="extension of audio file (validation)",
 )
 parser.add_argument(
     "--train_n", type=int, default=200, help="number of files from training data to use"
@@ -116,7 +119,7 @@ model = model.cuda()
 
 
 train_paths, train_wavs = data_loader.get_data(
-    args.train_path, args.train_n, args.extension
+    args.train_path, args.train_n, args.train_extension
 )
 
 print("train data loading...")
@@ -143,16 +146,17 @@ mu = train_e_np.mean(0)[None, :]
 std = train_e_np.std(0)[None, :]
 clf.fit((train_e_np - mu) / std, targets)
 
+boundary_path = f"{args.boundary_root_path}/boundaries.tsv"
+with open(boundary_path, "w") as f:
+    f.write("path\tboundary\n")
+
 print("segmenting validation data...")
-val_audio_paths = list(fileutils.iter_find_files(args.val_path, f"*.{args.extension}"))
+val_audio_paths = list(
+    fileutils.iter_find_files(args.val_path, f"*.{args.val_extension}")
+)
 for val_audio_path in tqdm(val_audio_paths[: args.eval_n]):
-    boundary_path = data_loader.generate_aligned_path(
-        f"{args.boundary_root_path}/word", args.val_path, Path(val_audio_path)
-    ).with_suffix(".txt")
-    # skip if boundary file already exists
-    if boundary_path.exists():
-        continue
-    os.makedirs(boundary_path.parent, exist_ok=True)
+    # TODO: skip if boundary file already exists
+    os.makedirs(args.boundary_root_path, exist_ok=True)
 
     # laod audio and get embedding
     val_wav, sr = torchaudio.load(val_audio_path)
@@ -179,9 +183,11 @@ for val_audio_path in tqdm(val_audio_paths[: args.eval_n]):
     seg_bound[-1] = 1
 
     # write boundary file
-    with open(boundary_path, "w") as f:
+    with open(boundary_path, "a") as f:
+        boundaries = ""
         for idx, b in enumerate(seg_bound):
             # idx * 10 gives millisecond time
             if b == 1:
                 ms = idx * 10
-                f.write(str(ms) + "\n")
+                boundaries += str(ms) + " "
+        f.write(f"{val_audio_path}\t{boundaries.strip()}\n")
