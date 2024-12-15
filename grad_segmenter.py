@@ -146,6 +146,7 @@ mu = train_e_np.mean(0)[None, :]
 std = train_e_np.std(0)[None, :]
 clf.fit((train_e_np - mu) / std, targets)
 
+os.makedirs(args.boundary_root_path, exist_ok=True)
 boundary_path = f"{args.boundary_root_path}/boundaries.tsv"
 with open(boundary_path, "w") as f:
     f.write("path\tboundary\n")
@@ -154,10 +155,14 @@ print("segmenting validation data...")
 val_audio_paths = list(
     fileutils.iter_find_files(args.val_path, f"*.{args.val_extension}")
 )
-for val_audio_path in tqdm(val_audio_paths[: args.eval_n]):
+print(val_audio_paths)
+print(val_audio_paths[0])
+if args.eval_n == -1:
+    paths = val_audio_paths
+else:
+    paths = val_audio_paths[: args.eval_n]
+for val_audio_path in tqdm(paths):
     # TODO: skip if boundary file already exists
-    os.makedirs(args.boundary_root_path, exist_ok=True)
-
     # laod audio and get embedding
     val_wav, sr = torchaudio.load(val_audio_path)
     assert isinstance(val_wav, torch.Tensor)
